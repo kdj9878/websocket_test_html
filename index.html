@@ -88,6 +88,11 @@
 			}
 		}
 
+		ws.onclose = function(message){
+			console.log("websocket is closed");
+			console.log(message);
+		}
+
 		document.addEventListener("keypress", function(e){
 			if(e.keyCode == 13){ //enter press
 				send();
@@ -119,38 +124,50 @@
 	}
 
 	function fileSend(){
-		let fileReader = new FileReader();
 		let file = document.querySelector("#fileUpload").files[0];
+		const chunkSize = 1024;
+		const totalChunks = Math.ceil(file.size / chunkSize);
+
 		let fileType = file.type;
 		let sendData;
 		let param;
+		let currentChunk = 0;
+
 		if(fileType.includes("image")){
-			fileReader.readAsDataURL(file);
-			fileReader.onload = function(e) {
-				sendData = e.target.result; //base64로 인코딩된 값
-				param = {
-					type : fileType,
-					content : file.name,
-					sessionId : $("#sessionId"),
-					userName : $("#userName")
-				}
-				ws.send(JSON.stringify(param));
+			param = {
+                type : fileType,
+                content : file.name.split(".")[0],
+                userName : $("#userName").val(),
+                size : totalChunks,
+            }
+            ws.send(JSON.stringify(param));
+
+			for(var i = currentChunk; i < totalChunks; i++){
+				const start = currentChunk * chunkSize;;
+				const end = Math.min(start + chunkSize, file.size);
+				const chunk = file.slice(start, end);
+				ws.send(chunk);
+				currentChunk++;
 			}
 		}
 		else if(fileType.includes("video")){
 			fileReader.readAsArrayBuffer(file);
 			fileReader.onload = function(e){
 				senddata = e.target.result; //arrayBuffer 객체
+				console.log(sendData);
+				return;
 				param = {
 					type : fileType,
 					content : file.name,
-					sessionId : $("#sessionId"),
 					userName : $("#userName")
 				}
 				ws.send(JSON.stringify(param));
+
+				ws.send(sendData);
 			}
 		}
 	}
+
 </script>
 <body>
 	<div id="container" class="container">
